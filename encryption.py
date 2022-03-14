@@ -1,5 +1,6 @@
 import numpy as np
 import prime_array as pa
+import key_streams as ks
 
 
 def encrypt_text(plaintext, algorithm, shift_id, reverse_text, reverse_gematria, interrupter, key, interrupter_array):
@@ -85,7 +86,7 @@ def atbash(plaintext):
 def apply_shift(ct_numbers, interrupter, shift_id):
     # Indices 1-2, 3-4, and 5-6 are swapped, so that decryption undoes the encryption operation.
     # So Index 1 in encryption is the inverse operation of Index 1 in decryption
-    ct_numbers=ct_numbers.squeeze()
+    ct_numbers = ct_numbers.squeeze()
     shift_index = 0
     prime = pa.numpy_prime_array()
 
@@ -128,37 +129,33 @@ def apply_shift(ct_numbers, interrupter, shift_id):
     return np.remainder(ct_numbers, 29)
 
 
-def convert_text_to_index(input_text):
-    latin_fragments = ['F', 'U', 'TH', 'O', 'R', 'C', 'G', 'W', 'H', 'N', 'I', 'J', 'EO', 'P', 'X', 'S', 'T', 'B', 'E', 'M', 'L', 'ING',
-                       'OE',
-                       'D', 'A', 'AE', 'Y', 'IA', 'EA']
+def key_switch_algorith(plaintext):
+    ct = plaintext.copy()
+    Circumferences = np.array([6, 11, 5, 6, 2, 20, 1, 19, 5, 19, 10, 6, 19, 16])
+    Divinity = np.array([24, 11, 2, 11, 10, 11, 17, 27])
+    integercy = np.zeros(len(plaintext), dtype=np.int32)
 
-    e2p = {}
-    for i in range(0, 29):
-        e2p[latin_fragments[i]] = i
-    e2p["IO"] = e2p["IA"]
-    e2p["K"] = e2p["C"]
-    e2p["NG"] = e2p["ING"]
-    e2p["Z"] = e2p["S"]
-    e2p["Q"] = e2p["C"]
-    e2p["V"] = e2p["U"]
-
-    input_text = input_text.upper().replace("QU", "KW")
-    input_text = input_text.replace("Q", "K")
-
-    text_as_index = []
-    skip = 0
-    for index, value in enumerate(input_text):
-        if skip:
-            skip -= 1
-            continue
-        if input_text[index:index + 3] in e2p:
-            text_as_index.append(e2p[input_text[index:index + 3]])
-            skip = 2
-            continue
-        elif input_text[index:index + 2] in e2p:
-            text_as_index.append(e2p[input_text[index:index + 2]])
-            skip = 1
+    for i in range(len(ct) - 1):
+        if ((ct[i + 1] + Divinity[(i + 1) % 8]) % 29) == ((ct[i] + Divinity[i % 8]) % 29):
+            if ((ct[i + 1] + Circumferences[(i + 1) % 14]) % 29) == ((ct[i] + Circumferences[i % 14]) % 29):
+                continue
+            else:
+                integercy[i] = (ct[i] + Circumferences[i % 14]) % 29
         else:
-            text_as_index.append(e2p[input_text[index]])
-    return np.asarray(text_as_index)
+            integercy[i] = (ct[i] + Divinity[i % 8]) % 29
+    return integercy
+
+
+def long_oeis_sequence(plaintext):
+    ct = plaintext.copy()
+    key = ks.oeis_key()
+    max_index = len(key) - 1
+    for i in range(len(ct) - 1):
+        ct[i] = (ct[i] + (key[i % max_index] % 29)) % 29
+    return ct
+
+
+def random_otp(plaintext):
+    ct = plaintext.copy()
+    ct = (ct + np.random.randint(low=0,high=28, size=len(ct), dtype=np.int8)) % 29
+    return ct
